@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Project
+data/*.db
+logs/*.log
+models/*.pkl
+
+#dataset
+new_dataset
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+###
+run.bat
+test.bat
+update.bat
+CLAUDE.md
+SHIDIQ JARI TENGAH KNN
+preprocessing_*
+train_*
+visualize_*
+condition_*
