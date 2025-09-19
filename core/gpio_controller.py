@@ -1,11 +1,9 @@
-#import RPi.GPIO as GPIO
 import time
 from smbus2 import SMBus
 from config import GPIO_CONFIG
 
 class GPIOController:
     def __init__(self):
-        """Initialize GPIO pins"""
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         
@@ -19,7 +17,6 @@ class GPIOController:
         
         self.bus = SMBus(1)
         self.lcd_addr = GPIO_CONFIG['LCD_I2C_ADDR']
-        pass
         
     def led_on(self):
         GPIO.output(GPIO_CONFIG['LED_PIN'], GPIO.HIGH)
@@ -34,7 +31,6 @@ class GPIOController:
         GPIO.output(GPIO_CONFIG['BUZZER_PIN'], GPIO.LOW)
     
     def buzzer_pattern(self, pattern):
-        """Play buzzer pattern"""
         for duration in pattern:
             self.buzzer_on()
             time.sleep(duration)
@@ -57,10 +53,7 @@ class GPIOController:
             GPIO.output(pin, GPIO.LOW)
     
     def display_message(self, line1, line2=""):
-        """Display message on LCD (simplified)"""
-        # This would need proper I2C LCD library implementation
         print(f"LCD: {line1} | {line2}")
     
     def cleanup(self):
-        """Clean up GPIO"""
         GPIO.cleanup()

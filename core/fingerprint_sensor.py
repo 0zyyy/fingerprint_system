@@ -1,5 +1,3 @@
-"""Fingerprint sensor interface module"""
-
 import numpy as np
 from pyfingerprint.pyfingerprint import PyFingerprint
 from config import SENSOR_CONFIG
@@ -7,13 +5,11 @@ import logging
 
 class FingerprintSensor:
     def __init__(self):
-        """Initialize fingerprint sensor"""
         self.logger = logging.getLogger('FingerprintSensor')
         self.sensor = None
         self.connect()
     
     def connect(self):
-        """Connect to fingerprint sensor"""
         try:
             self.sensor = PyFingerprint(
                 SENSOR_CONFIG['PORT'],
@@ -32,18 +28,14 @@ class FingerprintSensor:
             raise
     
     def capture_image(self):
-        """Capture fingerprint image"""
         try:
             self.logger.debug("Waiting for finger...")
             
-            # Wait for finger
             while not self.sensor.readImage():
                 pass
             
-            # Download image
             image_data = self.sensor.downloadImage()
             
-            # Convert to numpy array
             image = np.array(image_data).reshape(
                 SENSOR_CONFIG['IMAGE_HEIGHT'],
                 SENSOR_CONFIG['IMAGE_WIDTH']

@@ -14,11 +14,9 @@ from config import SYSTEM_CONFIG, MODEL_CONFIG
 
 class FingerprintSystem:
     def __init__(self):
-        """Initialize the fingerprint recognition system"""
         self.logger = setup_logger('FingerprintSystem')
         self.logger.info("Initializing Fingerprint System...")
         
-        # Initialize components
         self.sensor = FingerprintSensor()
         self.gpio = GPIOController()
         self.preprocessor = ImagePreprocessor()
@@ -26,50 +24,37 @@ class FingerprintSystem:
         self.classifier = FingerprintClassifier()
         self.db = DatabaseManager()
         
-        # System state
         self.running = False
         self.machine_running = False
         self.verification_timer = None
         
-        # # Load trained model
-        # self.classifier.load_model('models/trained_model.pkl')
-        
-        # Setup signal handlers
         signal.signal(signal.SIGINT, self.shutdown)
         signal.signal(signal.SIGTERM, self.shutdown)
         
     def start(self):
-        """Start the fingerprint system"""
         self.running = True
         self.logger.info("System started")
-            
-        # Main loop
         self.main_loop()
         
     def main_loop(self):
-        """Main operational loop"""
         while self.running:
-            # Check button press
             if self.gpio.is_button_pressed():
                 self.start_machine()
             
-            # Check if verification needed
             if self.machine_running and self.needs_verification():
                 self.request_verification()
             
             time.sleep(0.1)
     
     def start_machine(self):
-        """Start machine operation"""
         self.logger.info("Starting machine")
         self.machine_running = True
         self.gpio.led_on()
-        self.gpio.relay_on(0)  # Start main relay
+        self.gpio.relay_on(0)
         self.gpio.display_message("Machine Running", "Ready")
         self.schedule_verification()
         
     def schedule_verification(self):
-        """Schedule next verification"""
         self.verification_timer = threading.Timer(
             SYSTEM_CONFIG['VERIFICATION_INTERVAL'],
             self.request_verification
@@ -77,12 +62,10 @@ class FingerprintSystem:
         self.verification_timer.start()
         
     def request_verification(self):
-        """Request fingerprint verification"""
         self.logger.info("Requesting verification")
-        self.gpio.buzzer_pattern([0.5, 0.5, 0.5])  # Beep pattern
+        self.gpio.buzzer_pattern([0.5, 0.5, 0.5])
         self.gpio.display_message("Verification", "Place finger")
         
-        # Wait for fingerprint
         success = self.capture_and_verify()
         
         if success:
@@ -94,22 +77,17 @@ class FingerprintSystem:
             self.gpio.display_message("Failed", "Access denied")
     
     def capture_and_verify(self, timeout=10):
-        """Capture and verify fingerprint"""
         start_time = time.time()
         
         while time.time() - start_time < timeout:
-            # Try to capture fingerprint
             image = self.sensor.capture_image()
             
             if image is not None:
-                # Process image
                 processed = self.preprocessor.process(image)
                 features = self.feature_extractor.extract(processed)
                 
-                # Classify
                 confidence, user_id = self.classifier.predict(features)
                 
-                # Log attempt
                 self.db.log_access(
                     user_id=user_id,
                     status='success' if confidence > MODEL_CONFIG['THRESHOLD'] else 'failed',
@@ -129,7 +107,6 @@ class FingerprintSystem:
         return False
     
     def stop_machine(self):
-        """Stop machine operation"""
         self.logger.info("Stopping machine")
         self.machine_running = False
         self.gpio.led_off()
@@ -140,12 +117,9 @@ class FingerprintSystem:
             self.verification_timer.cancel()
     
     def needs_verification(self):
-        """Check if verification is needed"""
-        # This would be called by timer in real implementation
         return False
         
     def shutdown(self, signum, frame):
-        """Graceful shutdown"""
         self.logger.info("Shutting down system...")
         self.running = False
         self.stop_machine()

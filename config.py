@@ -28,7 +28,7 @@ MODEL_CONFIG = {
 }
 
 SYSTEM_CONFIG = {
-    'VERIFICATION_INTERVAL': 30,  # seconds
+    'VERIFICATION_INTERVAL': 30,
     'DATABASE_PATH': 'data/fingerprint.db',
     'LOG_PATH': 'logs/system.log',
     'WEB_PORT': 5000
