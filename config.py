@@ -1,9 +1,6 @@
 GPIO_CONFIG = {
-    'LED_PIN': 17,
-    'BUZZER_PIN': 18,
-    'BUTTON_PIN': 27,
-    'RELAY_PINS': [22, 23, 24, 25],
-    'LCD_I2C_ADDR': 0x27
+    'SERVO_PIN': 7,
+    'LED_PIN': 11,
 }
 
 SENSOR_CONFIG = {
