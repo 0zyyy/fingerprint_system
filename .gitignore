@@ -9,6 +9,7 @@ venv/
 data/*.db
 logs/*.log
 models/*.pkl
+data/*
 
 #dataset
 new_dataset
@@ -28,3 +29,5 @@ preprocessing_*
 train_*
 visualize_*
 condition_*
+cnn_*
+collect_*

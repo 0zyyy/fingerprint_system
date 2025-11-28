@@ -1,10 +1,12 @@
 GPIO_CONFIG = {
-    'SERVO_PIN': 7,
-    'LED_PIN': 11,
+    'SERVO_PIN': 11,
+    'LED_PIN': 13,
 }
 
+import platform
+
 SENSOR_CONFIG = {
-    'PORT': '/dev/ttyUSB0',
+    'PORT': 'COM3' if platform.system() == 'Windows' else '/dev/ttyUSB0',
     'BAUDRATE': 57600,
     'IMAGE_WIDTH': 256,
     'IMAGE_HEIGHT': 288

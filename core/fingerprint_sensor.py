@@ -6,20 +6,20 @@ from config import SENSOR_CONFIG
 import logging
 
 class FingerprintSensor:
-    def __init__(self):
+    def __init__(self, port=None):
         self.logger = logging.getLogger('FingerprintSensor')
         self.sensor = None
+        self.port = port if port else SENSOR_CONFIG["PORT"]
         self.connect()
 
     def connect(self):
         try:
-            uart = serial.Serial(SENSOR_CONFIG["PORT"],baudrate=SENSOR_CONFIG['BAUDRATE'],timeout=-1)
+            uart = serial.Serial(self.port, baudrate=SENSOR_CONFIG['BAUDRATE'], timeout=1)
             self.sensor = adafruit_fingerprint.Adafruit_Fingerprint(uart)
+            # if not self.sensor.verify_password():
+            #     raise ValueError('Fingerprint sensor password verification failed')
 
-            if not self.sensor.verify_password():
-                raise ValueError('Fingerprint sensor password verification failed')
-
-            self.logger.info(f"Sensor connected. Capacity: {self.sensor.getStorageCapacity()}")
+            self.logger.info(f"Sensor connected. Capacity: {self.sensor.count_templates()}")
 
         except Exception as e:
             self.logger.error(f"Failed to connect sensor: {e}")
@@ -51,3 +51,31 @@ class FingerprintSensor:
         except Exception as e:
             self.logger.error(f"Failed to capture image: {e}")
             return None
+
+    def verify_finger(self):
+        """
+        Captures an image, converts it to a template, and searches for a match.
+        Returns:
+            bool: True if a match is found, False otherwise.
+        """
+        try:
+            self.logger.info("Waiting for finger...")
+            while self.sensor.get_image() != adafruit_fingerprint.OK:
+                pass
+            
+            self.logger.info("Image captured. Processing...")
+            if self.sensor.image_2_tz(1) != adafruit_fingerprint.OK:
+                self.logger.error("Failed to convert image to template")
+                return False
+            
+            self.logger.info("Searching for match...")
+            if self.sensor.finger_search() != adafruit_fingerprint.OK:
+                self.logger.warning("No match found")
+                return False
+            
+            self.logger.info(f"Match found! ID: {self.sensor.finger_id}, Confidence: {self.sensor.confidence}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Verification error: {e}")
+            return False

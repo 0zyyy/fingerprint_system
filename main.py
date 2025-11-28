@@ -1,34 +1,25 @@
 #!/usr/bin/env python3
-import
-import threading
 import signal
 import sys
 import time
+
+from config import SYSTEM_CONFIG, MODEL_CONFIG
 from core.fingerprint_sensor import FingerprintSensor
 from core.gpio_controller import GPIOController
-from core.preprocessing import ImagePreprocessor
-from core.feature_extraction import HOGExtractor
-from models.ann_model import FingerprintClassifier
-from database.db_manager import DatabaseManager
+from models.tf_inference import FingerprintClassifier
 from utils.logger import setup_logger
-from config import SYSTEM_CONFIG, MODEL_CONFIG
 
-# TODO: Gausah pake DB karena pake preprocess model
+
 class FingerprintSystem:
     def __init__(self):
-        self.logger = setup_logger('FingerprintSystem')
+        self.logger = setup_logger("FingerprintSystem")
         self.logger.info("Initializing Fingerprint System...")
 
         self.sensor = FingerprintSensor()
         self.gpio = GPIOController()
-        self.preprocessor = ImagePreprocessor()
-        self.feature_extractor = HOGExtractor()
-        self.classifier = FingerprintClassifier()
-        self.db = DatabaseManager()
+        self.model = FingerprintClassifier()
 
         self.running = False
-        self.machine_running = False
-        self.verification_timer = None
 
         signal.signal(signal.SIGINT, self.shutdown)
         signal.signal(signal.SIGTERM, self.shutdown)
@@ -38,103 +29,63 @@ class FingerprintSystem:
         self.logger.info("System started")
         self.main_loop()
 
-    # TODO: Defining new main loop
     def main_loop(self):
+        self.logger.info("Ready for verification...")
         while self.running:
-
-            #i wanna test led first
-            self.gpio.led_on()
-            time.sleep(3)
-            self.gpio.led_off()
-
-            # if self.gpio.is_button_pressed():
-            #     self.start_machine()
-
-            # if self.machine_running and self.needs_verification():
-            #     self.request_verification()
-
+            # 1. Capture Image
+            image = self.sensor.capture_image()
+            
+            if image is not None:
+                # 2. Predict using TensorFlow
+                confidence, user_id = self.model.predict(image)
+                
+                self.logger.info(f"Predicted User: {user_id}, Confidence: {confidence:.2f}")
+                
+                # 3. Verify
+                if confidence > MODEL_CONFIG.get('THRESHOLD', 0.8):
+                    self.grant_access()
+                else:
+                    self.deny_access()
+            
+            # Small delay
             time.sleep(0.1)
 
-    # TESTING ONLY
-    def test_led(self):
+    def grant_access(self):
+        self.logger.info("Access GRANTED")
+        
+        # Visual indicator
         self.gpio.led_on()
-        time.sleep(3)
+        
+        # Open door (Servo to 90 degrees)
+        self.logger.info("Opening door...")
+        self.gpio.setAngle(90)
+        
+        # Keep open for 5 seconds
+        time.sleep(5)
+        
+        # Close door (Servo to 0 degrees)
+        self.logger.info("Closing door...")
+        self.gpio.setAngle(0)
+        
+        # Turn off indicator
         self.gpio.led_off()
 
-
-    def start_machine(self):
-        self.logger.info("Starting machine")
-        self.machine_running = True
-        # self.gpio.led_on()
-        self.schedule_verification()
-
-    def schedule_verification(self):
-        self.verification_timer = threading.Timer(
-            SYSTEM_CONFIG['VERIFICATION_INTERVAL'],
-            self.request_verification
-        )
-        self.verification_timer.start()
-
-    # TODO: Verif pake LED
-    def request_verification(self):
-        self.logger.info("Requesting verification")
-        self.gpio.led_on()
-
-        success = self.capture_and_verify()
-
-        if success:
+    def deny_access(self):
+        self.logger.warning("Access DENIED")
+        
+        # Blink LED 3 times
+        for _ in range(3):
+            self.gpio.led_on()
+            time.sleep(0.2)
             self.gpio.led_off()
-            self.schedule_verification()
-        else:
-            self.stop_machine()
-
-    def capture_and_verify(self, timeout=10):
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            image = self.sensor.capture_image()
-
-            if image is not None:
-                processed = self.preprocessor.process(image)
-                features = self.feature_extractor.extract(processed)
-
-                confidence, user_id = self.classifier.predict(features)
-
-                # self.db.log_access(
-                #     user_id=user_id,
-                #     status='success' if confidence > MODEL_CONFIG['THRESHOLD'] else 'failed',
-                #     confidence=confidence
-                # )
-
-                if confidence > MODEL_CONFIG['THRESHOLD']:
-                    self.logger.info(f"User {user_id} verified with confidence {confidence:.2f}")
-                    return True
-                else:
-                    self.logger.warning(f"Verification failed. Confidence: {confidence:.2f}")
-                    return False
-
-            time.sleep(0.5)
-
-        self.logger.warning("Verification timeout")
-        return False
-
-    def stop_machine(self):
-        self.logger.info("Stopping machine")
-        self.machine_running = False
-        self.gpio.led_off()
-
-        if self.verification_timer:
-            self.verification_timer.cancel()
-
-    def needs_verification(self):
-        return False
+            time.sleep(0.2)
 
     def shutdown(self, signum, frame):
         self.logger.info("Shutting down system...")
         self.running = False
-        self.stop_machine()
         self.gpio.cleanup()
         sys.exit(0)
+
 
 if __name__ == "__main__":
     system = FingerprintSystem()
