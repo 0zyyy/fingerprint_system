@@ -6,7 +6,7 @@ import time
 from config import SYSTEM_CONFIG, MODEL_CONFIG
 from core.fingerprint_sensor import FingerprintSensor
 from core.gpio_controller import GPIOController
-from models.tf_inference import FingerprintClassifier
+from models.onnx_inference import FingerprintONNX as FingerprintClassifier
 from utils.logger import setup_logger
 
 
