@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 from config import GPIO_CONFIG
 from time import sleep
 
-# TODO: Change GPIO
+
 class GPIOController:
     def __init__(self):
         GPIO.setmode(GPIO.BOARD)

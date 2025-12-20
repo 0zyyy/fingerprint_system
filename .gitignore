@@ -9,10 +9,9 @@ venv/
 data/*.db
 logs/*.log
 models/*.pkl
+models/*.h5
+models/*.onnx
 data/*
-
-#dataset
-new_dataset
 
 # IDE
 .vscode/
@@ -24,7 +23,6 @@ run.bat
 test.bat
 update.bat
 CLAUDE.md
-SHIDIQ JARI TENGAH KNN
 preprocessing_*
 train_*
 visualize_*
