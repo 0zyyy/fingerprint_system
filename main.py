@@ -2,11 +2,13 @@
 import signal
 import sys
 import time
+import adafruit_fingerprint
 
-from config import SYSTEM_CONFIG, MODEL_CONFIG
+from config import SYSTEM_CONFIG
 from core.fingerprint_sensor import FingerprintSensor
 from core.gpio_controller import GPIOController
-from models.onnx_inference import FingerprintONNX as FingerprintClassifier
+from core.verifier import FingerprintVerifier
+from database.db_manager import DatabaseManager
 from utils.logger import setup_logger
 
 
@@ -15,9 +17,10 @@ class FingerprintSystem:
         self.logger = setup_logger("FingerprintSystem")
         self.logger.info("Initializing Fingerprint System...")
 
+        self.db = DatabaseManager()
         self.sensor = FingerprintSensor()
         self.gpio = GPIOController()
-        self.model = FingerprintClassifier()
+        self.verifier = FingerprintVerifier(db=self.db)
 
         self.running = False
 
@@ -26,54 +29,51 @@ class FingerprintSystem:
 
     def start(self):
         self.running = True
-        self.logger.info("System started")
+        self.logger.info("System started. Waiting for finger...")
         self.main_loop()
 
     def main_loop(self):
-        self.logger.info("Ready for verification...")
         while self.running:
-            # 1. Capture Image
+            # Blocks here until a finger is placed (handled inside capture_image)
             image = self.sensor.capture_image()
-            
-            if image is not None:
-                # 2. Predict using TensorFlow
-                confidence, user_id = self.model.predict(image)
-                
-                self.logger.info(f"Predicted User: {user_id}, Confidence: {confidence:.2f}")
-                
-                # 3. Verify
-                if confidence > MODEL_CONFIG.get('THRESHOLD', 0.8):
-                    self.grant_access()
-                else:
-                    self.deny_access()
-            
-            # Small delay
-            time.sleep(0.1)
 
-    def grant_access(self):
-        self.logger.info("Access GRANTED")
-        
-        # Visual indicator
+            if image is None:
+                continue
+
+            result = self.verifier.verify(image)
+
+            if result["granted"]:
+                self.grant_access(result["user_id"])
+            else:
+                self.deny_access(conflict=result["conflict"])
+
+            # Wait for finger to lift before next scan
+            self._wait_for_finger_lift()
+
+    def _wait_for_finger_lift(self):
+        """Block until the sensor reports no finger present."""
+        while self.running:
+            if self.sensor.sensor.get_image() == adafruit_fingerprint.NOFINGER:
+                break
+            time.sleep(0.05)
+
+    def grant_access(self, user_id):
+        user = self.db.get_user(user_id)
+        name = user["name"] if user else f"User {user_id}"
+        self.logger.info(f"Access GRANTED — {name}")
+
         self.gpio.led_on()
-        
-        # Open door (Servo to 90 degrees)
-        self.logger.info("Opening door...")
         self.gpio.setAngle(90)
-        
-        # Keep open for 5 seconds
         time.sleep(5)
-        
-        # Close door (Servo to 0 degrees)
-        self.logger.info("Closing door...")
         self.gpio.setAngle(0)
-        
-        # Turn off indicator
         self.gpio.led_off()
 
-    def deny_access(self):
-        self.logger.warning("Access DENIED")
-        
-        # Blink LED 3 times
+    def deny_access(self, conflict: bool = False):
+        if conflict:
+            self.logger.warning("Access DENIED — score conflict (possible spoof attempt)")
+        else:
+            self.logger.warning("Access DENIED")
+
         for _ in range(3):
             self.gpio.led_on()
             time.sleep(0.2)
@@ -81,8 +81,10 @@ class FingerprintSystem:
             time.sleep(0.2)
 
     def shutdown(self, signum, frame):
-        self.logger.info("Shutting down system...")
+        self.logger.info("Shutting down...")
         self.running = False
+        self.gpio.setAngle(0)   # ensure door is closed
+        self.gpio.led_off()
         self.gpio.cleanup()
         sys.exit(0)
 

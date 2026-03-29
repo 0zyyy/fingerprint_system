@@ -23,7 +23,9 @@ MODEL_CONFIG = {
     'INPUT_DIM': 1764,
     'HIDDEN_LAYERS': [512, 256],
     'OUTPUT_DIM': 10,
-    'THRESHOLD': 0.80
+    'MODEL_PATH': 'models/fingerprint_ann.onnx',
+    'THRESHOLD': 0.80,
+    'HOG_THRESHOLD': 0.95,   # EER threshold from thesis
 }
 
 SYSTEM_CONFIG = {
